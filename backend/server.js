@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 5000;
 
 // Security & Middleware
 app.use(helmet()); // Protects against common web vulnerabilities
-app.use(cors({ origin: process.env.CLIENT_URL })); // Restrict to your frontend
+app.use(cors()); // Allow all local requests for testing
 app.use(express.json({ limit: '10kb' })); // Prevent payload overload
 
 // Rate limiting to prevent brute force/DDoS
@@ -26,8 +26,8 @@ app.get('/health', (req, res) => {
 });
 
 // Route Placeholders (We will build these next)
-// app.use('/api/auth', require('./src/routes/authRoutes'));
-// app.use('/api/assessments', require('./src/routes/assessmentRoutes'));
+ app.use('/api/auth', require('./src/routes/authRoutes'));
+app.use('/api/assessments', require('./src/routes/assessmentRoutes'));
 // app.use('/api/counsellors', require('./src/routes/counsellorRoutes'));
 
 // Global Error Handler

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../services/api';
+import { 
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
+} from 'recharts';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalAssessments: 0,
-    criticalCases: 0,
-    riskDistribution: { low: 0, moderate: 0, severe: 0 }
-  });
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a production environment, this would call a dedicated /api/analytics endpoint
     const fetchAnalytics = async () => {
       try {
         const response = await apiClient.get('/assessments/queue');
@@ -22,11 +21,23 @@ export default function AdminDashboard() {
         const moderate = data.filter(d => d.risk_level === 'Moderate').length;
         const low = total - critical - severe - moderate;
 
-        setStats({
-          totalAssessments: total,
-          criticalCases: critical,
-          riskDistribution: { low, moderate, severe: severe + critical }
-        });
+        // Data structure for the Interactive Pie Chart
+        const riskData = [
+          { name: 'Mild / Low', value: low, color: '#819E8E' },
+          { name: 'Moderate', value: moderate, color: '#B7C7BC' },
+          { name: 'Severe / Critical', value: severe + critical, color: '#E4C7B0' }
+        ];
+
+        // Data structure for the Interactive Bar Chart
+        const statusData = [
+          { 
+            name: 'Case Status', 
+            'Pending Review': data.filter(d => d.status === 'pending_review').length,
+            'Action Taken': data.filter(d => d.status !== 'pending_review').length
+          }
+        ];
+
+        setStats({ total, criticalCases: critical, riskData, statusData });
       } catch (error) {
         console.error("Failed to fetch analytics", error);
       } finally {
@@ -37,43 +48,105 @@ export default function AdminDashboard() {
     fetchAnalytics();
   }, []);
 
-  if (loading) return <div className="p-10 text-center">Compiling institutional reports...</div>;
+  if (loading) return <div className="p-20 text-center text-[#819E8E] font-bold text-xl">Compiling interactive reports...</div>;
+  if (!stats) return <div className="p-20 text-center text-red-500">Failed to load data.</div>;
 
   return (
-    <div className="max-w-6xl mx-auto p-6 mt-10">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800">Institutional Overview</h2>
+    <div className="max-w-7xl mx-auto p-4 md:p-8 mt-6">
+      <div className="mb-10 flex flex-col md:flex-row justify-between md:items-end">
+        <div>
+          <h2 className="text-4xl font-extrabold text-[#4A5D53]">Institutional Overview</h2>
+          <p className="text-[#819E8E] text-lg font-medium mt-2">Interactive, anonymized insights for resource planning.</p>
+        </div>
+        <button 
+          onClick={() => window.print()}
+          className="mt-4 md:mt-0 bg-[#F7F0E6] text-[#4A5D53] border-2 border-[#B7C7BC] px-6 py-2 rounded-xl font-bold hover:bg-[#E9D3C8] transition-colors"
+        >
+          Export PDF Report
+        </button>
+      </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500">
-          <h3 className="text-gray-500 text-sm font-bold uppercase">Total Screenings (30 Days)</h3>
-          <p className="text-4xl font-black text-gray-800 mt-2">{stats.totalAssessments}</p>
+      {/* Top Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+        <div className="bg-white p-8 rounded-[2rem] shadow-xl border-t-8 border-[#B7C7BC] relative overflow-hidden transition-transform hover:-translate-y-1">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#F7F0E6] rounded-full opacity-50"></div>
+          <h3 className="text-[#819E8E] text-sm font-black uppercase tracking-widest">Total Screenings</h3>
+          <p className="text-6xl font-black text-[#4A5D53] mt-4">{stats.total}</p>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-red-500">
-          <h3 className="text-gray-500 text-sm font-bold uppercase">Critical Escalations</h3>
-          <p className="text-4xl font-black text-red-600 mt-2">{stats.criticalCases}</p>
-          <p className="text-xs text-gray-400 mt-1">Referred to 24/7 Hotline</p>
+        <div className="bg-white p-8 rounded-[2rem] shadow-xl border-t-8 border-[#E4C7B0] relative overflow-hidden transition-transform hover:-translate-y-1">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#E9D3C8] rounded-full opacity-50"></div>
+          <h3 className="text-[#819E8E] text-sm font-black uppercase tracking-widest">Critical Escalations</h3>
+          <p className="text-6xl font-black text-[#4A5D53] mt-4">{stats.criticalCases}</p>
+          <p className="text-sm text-[#819E8E] mt-2 font-bold bg-[#F7F0E6] inline-block px-3 py-1 rounded-lg">Referred to Tele-MANAS</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
-          <h3 className="text-gray-500 text-sm font-bold uppercase">System Uptime</h3>
-          <p className="text-4xl font-black text-green-600 mt-2">99.9%</p>
-          <p className="text-xs text-gray-400 mt-1">Audit Trail Active</p>
+        <div className="bg-white p-8 rounded-[2rem] shadow-xl border-t-8 border-[#819E8E] relative overflow-hidden transition-transform hover:-translate-y-1">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#B7C7BC] rounded-full opacity-30"></div>
+          <h3 className="text-[#819E8E] text-sm font-black uppercase tracking-widest">System Availability</h3>
+          <p className="text-6xl font-black text-[#4A5D53] mt-4">99.9%</p>
+          <p className="text-sm text-[#819E8E] mt-2 font-bold bg-[#F7F0E6] inline-block px-3 py-1 rounded-lg">Audit Trail Active</p>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-bold mb-4">Risk Distribution</h3>
-        <div className="w-full bg-gray-200 rounded-full h-6 flex overflow-hidden">
-          <div style={{ width: `${(stats.riskDistribution.severe / stats.totalAssessments) * 100}%` }} className="bg-red-500 h-6"></div>
-          <div style={{ width: `${(stats.riskDistribution.moderate / stats.totalAssessments) * 100}%` }} className="bg-yellow-400 h-6"></div>
-          <div style={{ width: `${(stats.riskDistribution.low / stats.totalAssessments) * 100}%` }} className="bg-green-400 h-6"></div>
+      {/* Interactive Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Interactive Donut Chart */}
+        <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-[#E9D3C8]">
+          <h3 className="text-2xl font-extrabold mb-2 text-[#4A5D53]">Risk Distribution</h3>
+          <p className="text-[#819E8E] text-sm font-medium mb-6">Hover over segments for exact clinical counts.</p>
+          
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie 
+                  data={stats.riskData} 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={70} 
+                  outerRadius={100} 
+                  paddingAngle={5} 
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {stats.riskData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', borderColor: '#E9D3C8', fontWeight: 'bold', color: '#4A5D53' }}
+                  itemStyle={{ color: '#4A5D53' }}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="flex justify-between mt-2 text-sm text-gray-600 font-bold">
-          <span>Severe / Critical</span>
-          <span>Moderate</span>
-          <span>Mild / Low</span>
+
+        {/* Interactive Bar Chart */}
+        <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-[#E9D3C8]">
+          <h3 className="text-2xl font-extrabold mb-2 text-[#4A5D53]">Workflow Status</h3>
+          <p className="text-[#819E8E] text-sm font-medium mb-6">Tracking counsellor response rates.</p>
+          
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.statusData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F7F0E6" vertical={false} />
+                <XAxis dataKey="name" stroke="#819E8E" tick={{ fill: '#4A5D53', fontWeight: 'bold' }} />
+                <YAxis allowDecimals={false} stroke="#819E8E" tick={{ fill: '#4A5D53', fontWeight: 'bold' }} />
+                <Tooltip 
+                  cursor={{ fill: '#F7F0E6' }}
+                  contentStyle={{ borderRadius: '12px', borderColor: '#E9D3C8', fontWeight: 'bold' }}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                <Bar dataKey="Pending Review" fill="#E4C7B0" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Action Taken" fill="#819E8E" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
+
       </div>
     </div>
   );
